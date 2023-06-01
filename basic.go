@@ -4,11 +4,12 @@ import "math"
 
 const e float64 = math.E
 
-func getUnit(ywMap map[float64]float64, b float64, activationFunc func(float64) float64) float64 {
+func calUnit(ywMap map[float64]float64, b float64, activationFunc func(float64) float64) float64 {
 	var s float64 = 0
 	for y, weight := range ywMap {
 		s = s + weight*y
 	}
+	s = s - b
 	return activationFunc(s)
 }
 
