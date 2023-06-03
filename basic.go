@@ -1,121 +1,105 @@
 package main
 
 import (
-	"errors"
 	"math"
+	"math/rand"
 )
 
-type data struct {
-	xs [][]float64
-	zs []float64
-}
-
-type model struct {
-	layerUnitWs    [][][]float64
-	layerUnitB     [][]float64
-	activationFunc func(float64) float64
-	layerUnitNums  []int
-}
-
-func newData(xs [][]float64, zs []float64) *data {
-	return &data{
-		xs: xs,
-		zs: zs,
-	}
-}
-
-func newModel(layerUnitWs [][][]float64, layerUnitB [][]float64, activationFunc func(float64) float64, layerUnitNums []int) *model {
-	return &model{
-		layerUnitWs:    layerUnitWs,
-		layerUnitB:     layerUnitB,
-		activationFunc: activationFunc,
-		layerUnitNums:  layerUnitNums,
-	}
-}
-
-func createModel(k int, layerUnitNums []int, activationFunc func(float64) float64, defaultW float64, defaultB float64) *model {
-	layerNums := len(layerUnitNums)
-
-	newLayerUnitWs := make([][][]float64, layerNums)
-	for i := 0; i < len(newLayerUnitWs); i++ {
-		newLayerUnitWs[i] = make([][]float64, layerUnitNums[i])
-		for j := 0; j < len(newLayerUnitWs[i]); j++ {
-			inputNums := k
-			if i != 0 {
-				inputNums = layerUnitNums[i-1]
-			}
-			newLayerUnitWs[i][j] = make([]float64, inputNums)
-			for h := 0; h < len(newLayerUnitWs[i][j]); h++ {
-				newLayerUnitWs[i][j][h] = defaultW
-			}
-		}
-	}
-
-	newlayerUnitB := make([][]float64, layerNums)
-	for i := 0; i < len(newLayerUnitWs); i++ {
-		newlayerUnitB[i] = make([]float64, layerUnitNums[i])
-		for j := 0; j < len(newLayerUnitWs[i]); j++ {
-			newlayerUnitB[i][j] = defaultB
-		}
-
-	}
-
-	return newModel(newLayerUnitWs, newlayerUnitB, activationFunc, layerUnitNums)
+type Model struct {
+	layerUnitWs map[int](map[int]([]float64))
+	layerUnitB  map[int](map[int]float64)
 }
 
 const e float64 = math.E
 
-func (m *model) predUnit(ys []float64, ws []float64, b float64) float64 {
-	var s float64 = 0
-	for i := 0; i < len(ys); i++ {
-		s = s + ws[i]*ys[i]
+func InitModel() *Model {
+	return &Model{
+		layerUnitWs: make(map[int](map[int]([]float64))),
+		layerUnitB:  make(map[int](map[int]float64)),
 	}
-	s = s - b
-	return m.activationFunc(s)
 }
 
-func (m *model) predLayer(layer int, inputs []float64, outputNums int) []float64 {
-	ys := make([]float64, outputNums)
+// last unitNPerLayer = output n
+func (m *Model) Forward(xs []float64, unitNPerLayer ...int) (ys []float64) {
+	// final loop is output layer, others are hidden layers
+	for layerNum, un := range unitNPerLayer {
+		xs = m.layer(xs, layerNum, un)
+		xs = SigmoidFunc(xs)
+	}
 
-	ws := m.layerUnitWs[layer]
-	b := m.layerUnitB[layer]
+	ys = xs
+	return ys
+}
 
+func (m *Model) layer(xs []float64, layerNum int, unitN int) (ys []float64) {
+	ys = make([]float64, unitN)
 	var y float64
-	for i := 0; i < outputNums; i++ {
-		y = m.predUnit(inputs, ws[i], b[i])
+
+	if _, ok := m.layerUnitWs[layerNum]; !ok {
+		m.layerUnitWs[layerNum] = make(map[int]([]float64))
+	}
+	if _, ok := m.layerUnitB[layerNum]; !ok {
+		m.layerUnitB[layerNum] = make(map[int]float64)
+	}
+
+	for unitNum := 0; unitNum < unitN; unitNum++ {
+		y = m.unit(xs, layerNum, unitNum)
 		ys = append(ys, y)
 	}
 
 	return ys
 }
 
-func (m *model) pred(x []float64) (y float64, err error) {
-	if len(x) != len(m.layerUnitWs[0][0]) {
-		return 0, errors.New("invalid x length")
+func (m *Model) unit(xs []float64, layerNum int, unitNum int) (y float64) {
+	ws, ok := m.layerUnitWs[layerNum][unitNum]
+	if !ok {
+		newWs := make([]float64, len(xs))
+		for i := range newWs {
+			newWs[i] = RandFloat()
+		}
+		m.layerUnitWs[layerNum][unitNum] = newWs
 	}
 
-	// hidden layers
-	var layerY []float64 = x
-	for i := 0; i < len(m.layerUnitWs)-1; i++ {
-		layerY = m.predLayer(i, layerY, len(m.layerUnitWs[i+1]))
+	b, ok := m.layerUnitB[layerNum][unitNum]
+	if !ok {
+		m.layerUnitB[layerNum][unitNum] = RandFloat()
 	}
 
-	// output layer
-	layerY = m.predLayer(len(m.layerUnitWs)-1, layerY, 1)
-	y = layerY[0]
-
-	return y, nil
-}
-
-func stepFunc(x float64) (y float64) {
-	y = 0
-	if x >= 0 {
-		y = 1
+	var s float64 = 0
+	for i, x := range xs {
+		s = s + ws[i]*x
 	}
+	y = s - b
 	return y
 }
 
-func sigmoidFunc(x float64) (y float64) {
-	y = 1 / (1 + math.Pow(e, -x))
-	return y
+func StepFunc(xs []float64) (ys []float64) {
+	ys = make([]float64, 0, len(xs))
+	var y float64
+
+	for _, x := range xs {
+		y = 0
+		if x >= 0 {
+			y = 1
+		}
+		ys = append(ys, y)
+	}
+
+	return ys
+}
+
+func SigmoidFunc(xs []float64) (ys []float64) {
+	ys = make([]float64, 0, len(xs))
+	var y float64
+
+	for _, x := range xs {
+		y = 1 / (1 + math.Pow(e, -x))
+		ys = append(ys, y)
+	}
+
+	return ys
+}
+
+func RandFloat() float64 { // gen random float64 from -1 to 1
+	return (-1 + rand.Float64()*(1-(-1))) // min + rand.Float64() * (max - min)
 }
