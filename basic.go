@@ -19,15 +19,23 @@ func InitModel() *Model {
 	}
 }
 
-// last unitNPerLayer = output n
-func (m *Model) Forward(xs []float64, unitNPerLayer ...int) (ys []float64) {
-	// final loop is output layer, others are hidden layers
-	for layerNum, un := range unitNPerLayer {
-		xs = m.layer(xs, layerNum, un)
+// output n = 1
+func (m *Model) Forward(xss [][]float64, unitNPerHiddenLayer ...int) (ys []float64) {
+	ys = make([]float64, len(xss[0]))
+
+	for _, xs := range xss {
+		// hidden layers
+		for layerNum, unitN := range unitNPerHiddenLayer {
+			xs = m.layer(xs, layerNum, unitN)
+			xs = SigmoidFunc(xs)
+		}
+
+		// output layer
+		xs = m.layer(xs, len(unitNPerHiddenLayer), 1)
 		xs = SigmoidFunc(xs)
+		ys = append(ys, xs[0])
 	}
 
-	ys = xs
 	return ys
 }
 
@@ -67,7 +75,7 @@ func (m *Model) unit(xs []float64, layerNum int, unitNum int) (y float64) {
 
 	var s float64 = 0
 	for i, x := range xs {
-		s = s + ws[i]*x
+		s += ws[i] * x
 	}
 	y = s - b
 	return y
