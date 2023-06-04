@@ -66,11 +66,13 @@ func (m *Model) unit(xs []float64, layerNum int, unitNum int) (y float64) {
 			newWs[i] = RandFloat()
 		}
 		m.layerUnitWs[layerNum][unitNum] = newWs
+		ws = m.layerUnitWs[layerNum][unitNum]
 	}
 
 	b, ok := m.layerUnitB[layerNum][unitNum]
 	if !ok {
 		m.layerUnitB[layerNum][unitNum] = RandFloat()
+		b = m.layerUnitB[layerNum][unitNum]
 	}
 
 	var s float64 = 0
