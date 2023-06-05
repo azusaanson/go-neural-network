@@ -1,4 +1,4 @@
-package main
+package basic
 
 import (
 	"math"
@@ -9,6 +9,9 @@ type Model struct {
 	layerUnitWs map[int](map[int]([]float64))
 	layerUnitB  map[int](map[int]float64)
 }
+
+func (m *Model) LayerUnitWs() map[int](map[int]([]float64)) { return m.layerUnitWs }
+func (m *Model) LayerUnitB() map[int](map[int]float64)      { return m.layerUnitB }
 
 const e float64 = math.E
 
@@ -21,7 +24,7 @@ func InitModel() *Model {
 
 // output n = 1
 func (m *Model) Forward(xss [][]float64, unitNPerHiddenLayer ...int) (ys []float64) {
-	ys = make([]float64, len(xss[0]))
+	ys = make([]float64, 0, len(xss[0]))
 
 	for _, xs := range xss {
 		// hidden layers
@@ -40,7 +43,7 @@ func (m *Model) Forward(xss [][]float64, unitNPerHiddenLayer ...int) (ys []float
 }
 
 func (m *Model) layer(xs []float64, layerNum int, unitN int) (ys []float64) {
-	ys = make([]float64, unitN)
+	ys = make([]float64, 0, unitN)
 	var y float64
 
 	if _, ok := m.layerUnitWs[layerNum]; !ok {
@@ -54,7 +57,6 @@ func (m *Model) layer(xs []float64, layerNum int, unitN int) (ys []float64) {
 		y = m.unit(xs, layerNum, unitNum)
 		ys = append(ys, y)
 	}
-
 	return ys
 }
 
